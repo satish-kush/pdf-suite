@@ -1,0 +1,20 @@
+{
+    "name": "PDF Suite",
+    "short_name": "PDF Suite",
+    "start_url": ".",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#0061ff",
+    "icons": [
+        {
+            "src": "static/logo.jpg",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "static/logo.jpg",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}

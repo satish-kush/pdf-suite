@@ -240,7 +240,7 @@
                     await page.render({ canvasContext: context, viewport: viewport }).promise;
                     
                     // Get JPEG blob
-                    const imgDataUrl = canvas.toDataURL('image/jpeg', 0.7); // 70% quality compression
+                    const imgDataUrl = canvas.toDataURL('image/jpeg', 0.8); // 80% quality compression
                     
                     // Embed in PDF-Lib
                     const msgImage = await newPdfDoc.embedJpg(imgDataUrl);
