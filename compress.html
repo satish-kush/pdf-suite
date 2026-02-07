@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compress PDF - PDF Suite</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .main-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+        .tool-card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            padding: 2.5rem;
+            width: 100%;
+            max-width: 800px;
+        }
+        .btn-gradient {
+            background: linear-gradient(90deg, #0061ff 0%, #60efff 100%);
+            border: none;
+            color: white;
+            font-weight: 600;
+            padding: 0.75rem 1.5rem;
+        }
+        .btn-gradient:hover {
+            color: white;
+            opacity: 0.9;
+        }
+        .preview-container {
+            border: 1px solid #ddd;
+            background: #f8f9fa;
+            border-radius: 8px;
+            /* height: 300px; Removed fixed height for full view */
+            padding: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            margin-bottom: 1rem;
+        }
+        .preview-img {
+            width: 100%; /* Full width */
+            height: auto;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="index.html">PDF Suite</a>
+            <a href="index.html" class="btn btn-outline-light btn-sm">Back to Home</a>
+        </div>
+    </nav>
+
+    <div class="main-container">
+        <div class="tool-card">
+            <h2 class="mb-4 fw-bold text-center">Compress PDF</h2>
+            
+            <div class="mb-4 text-center">
+                <input type="file" id="pdfInput" accept=".pdf" class="form-control mb-3">
+                <p class="text-muted small">Note: Compression converts text to images.</p>
+            </div>
+
+            <div id="controls" style="display: none;">
+                <div class="row align-items-center mb-4">
+                    <div class="col-md-8">
+                        <label for="qualityRange" class="form-label fw-bold">Resolution %</label><br>
+                        <small>Low resolution means higher compression and smaller file size.</small>
+                        <input type="range" class="form-range" id="qualityRange" min="10" max="100" value="50">
+                        <div class="d-flex justify-content-between text-muted small">
+                            <small>High Compression (Low Quality)</small>
+                            <span id="qualityVal">50%</span>
+                            <small>Low Compression (High Quality)</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <button id="previewBtn" class="btn btn-outline-primary w-100">Update Preview</button>
+                    </div>
+                </div>
+
+                <div class="d-grid mt-4">
+                    <button id="compressBtn" class="btn btn-gradient rounded-pill">Compress & Download Full PDF</button>
+                    <div id="progressContainer" class="progress mt-3 d-none" style="height: 20px;">
+                        <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <div class="row mt-4">
+                    <div class="col-md-12">
+                        <h5 class="fw-bold">Compressed File Preview (Page 1)</h5>
+                        <p><span>Resolution: </span><span id="resolution"></span></p>
+                        <div class="preview-container">
+                            <img id="previewImage" src="" alt="Preview will appear here" style="display: none;" class="preview-img">
+                            <span id="previewPlaceholder" class="text-muted">Click 'Update Preview' to see result</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="statusMsg" class="mt-3 text-center small"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <!-- Render via PDF.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        // Set worker
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        const { PDFDocument } = PDFLib;
+        let currentFile = null;
+        let pdfDocProxy = null;
+        let originalPageCount = 0;
+
+        const pdfInput = document.getElementById('pdfInput');
+        const controls = document.getElementById('controls');
+        const qualityRange = document.getElementById('qualityRange');
+        const qualityVal = document.getElementById('qualityVal');
+        const previewBtn = document.getElementById('previewBtn');
+        const previewImage = document.getElementById('previewImage');
+        const compressBtn = document.getElementById('compressBtn');
+        const statusMsg = document.getElementById('statusMsg');
+        const progressBar = document.getElementById('progressBar');
+        const progressContainer = document.getElementById('progressContainer');
+        const resolution = document.getElementById('resolution');
+
+        pdfInput.addEventListener('change', async (e) => {
+            currentFile = e.target.files[0];
+            if (currentFile && currentFile.type === 'application/pdf') {
+                statusMsg.textContent = "Loading PDF...";
+                
+                try {
+                    const arrayBuffer = await currentFile.arrayBuffer();
+                    pdfDocProxy = await pdfjsLib.getDocument(arrayBuffer).promise;
+                    originalPageCount = pdfDocProxy.numPages;
+                    
+                    statusMsg.textContent = `Loaded ${currentFile.name} (${originalPageCount} pages)`;
+                    controls.style.display = 'block';
+                    
+                    // Trigger initial preview
+                    generatePreview();
+                } catch (err) {
+                    console.error(err);
+                    statusMsg.textContent = "Error loading PDF.";
+                }
+            }
+        });
+
+        qualityRange.addEventListener('input', (e) => {
+            qualityVal.textContent = e.target.value + "%";
+        });
+
+        previewBtn.addEventListener('click', generatePreview);
+
+        async function generatePreview() {
+            if (!pdfDocProxy) return;
+
+            resolution.textContent = qualityRange.value + "%";
+
+            statusMsg.textContent = "Generating preview...";
+            previewImage.style.display = 'none';
+            document.getElementById('previewPlaceholder').style.display = 'block';
+
+            try {
+                // Render Page 1
+                const page = await pdfDocProxy.getPage(1);
+                const scalePercent = parseInt(qualityRange.value) / 100;
+                // Base viewport. Default PDF scale is usually fine, but we multiply by user %
+                // Actually to "compress", we usually render at a lower scale (e.g. 0.5) to get fewer pixels
+                // Standard PDF point is 1/72 inch.
+                // Let's use a base scale of 1.5 (standard readable) multiplied by user factor
+                // If user selects 100%, we render at 1.5. If 50%, we render at 0.75.
+                const viewport = page.getViewport({ scale: 1.5 * scalePercent });
+
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+
+                await page.render({ canvasContext: context, viewport: viewport }).promise;
+
+                // To Data URL
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.8); // 80% JPEG quality
+                previewImage.src = dataUrl;
+                previewImage.style.display = 'block';
+                document.getElementById('previewPlaceholder').style.display = 'none';
+                statusMsg.textContent = "Preview updated. Adjust percentage to change size/quality.";
+
+            } catch (err) {
+                console.error(err);
+                statusMsg.textContent = "Error generating preview.";
+            }
+        }
+
+        compressBtn.addEventListener('click', async () => {
+            if (!pdfDocProxy) return;
+            
+            compressBtn.disabled = true;
+            progressContainer.classList.remove('d-none');
+            statusMsg.textContent = "Compressing... This may take a while for large files.";
+
+            try {
+                const newPdfDoc = await PDFDocument.create();
+                const scalePercent = parseInt(qualityRange.value) / 100;
+                const effectiveScale = 1.5 * scalePercent;
+
+                for (let i = 1; i <= originalPageCount; i++) {
+                    // Update progress
+                    const percent = Math.round(((i - 1) / originalPageCount) * 100);
+                    progressBar.style.width = `${percent}%`;
+                    progressBar.textContent = `Page ${i}/${originalPageCount}`;
+                    
+                    // Render page
+                    const page = await pdfDocProxy.getPage(i);
+                    const viewport = page.getViewport({ scale: effectiveScale });
+                    
+                    const canvas = document.createElement('canvas');
+                    const context = canvas.getContext('2d');
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+
+                    await page.render({ canvasContext: context, viewport: viewport }).promise;
+                    
+                    // Get JPEG blob
+                    const imgDataUrl = canvas.toDataURL('image/jpeg', 0.7); // 70% quality compression
+                    
+                    // Embed in PDF-Lib
+                    const msgImage = await newPdfDoc.embedJpg(imgDataUrl);
+                    
+                    // Add Page (use image dimensions)
+                    const imagePage = newPdfDoc.addPage([msgImage.width, msgImage.height]);
+                    imagePage.drawImage(msgImage, {
+                        x: 0,
+                        y: 0,
+                        width: msgImage.width,
+                        height: msgImage.height,
+                    });
+                }
+
+                // Final save
+                progressBar.style.width = "100%";
+                progressBar.textContent = "Finalizing...";
+
+                const pdfBytes = await newPdfDoc.save();
+                const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+                const url = URL.createObjectURL(blob);
+
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `compressed_${qualityRange.value}percent_${currentFile.name}`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                statusMsg.textContent = "Compression Complete! Download started.";
+                statusMsg.className = "mt-3 text-center small text-success";
+            } catch (err) {
+                console.error(err);
+                statusMsg.textContent = "Error during compression.";
+                statusMsg.className = "mt-3 text-center small text-danger";
+            } finally {
+                compressBtn.disabled = false;
+                setTimeout(() => {
+                    progressContainer.classList.add('d-none');
+                    progressBar.style.width = "0%";
+                }, 3000);
+            }
+        });
+    </script>
+</body>
+</html>
