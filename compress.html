@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -14,6 +15,7 @@
             display: flex;
             flex-direction: column;
         }
+
         .main-container {
             flex: 1;
             display: flex;
@@ -21,14 +23,16 @@
             justify-content: center;
             padding: 2rem;
         }
+
         .tool-card {
             background: white;
             border-radius: 16px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
             padding: 2.5rem;
             width: 100%;
             max-width: 800px;
         }
+
         .btn-gradient {
             background: linear-gradient(90deg, #0061ff 0%, #60efff 100%);
             border: none;
@@ -36,10 +40,12 @@
             font-weight: 600;
             padding: 0.75rem 1.5rem;
         }
+
         .btn-gradient:hover {
             color: white;
             opacity: 0.9;
         }
+
         .preview-container {
             border: 1px solid #ddd;
             background: #f8f9fa;
@@ -52,13 +58,25 @@
             overflow: hidden;
             margin-bottom: 1rem;
         }
+
         .preview-img {
-            width: 100%; /* Full width */
+            width: 100%;
+            /* Full width */
             height: auto;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
     </style>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-EZ9EL0G4TV"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date());
+
+        gtag('config', 'G-EZ9EL0G4TV');
+    </script>
 </head>
+
 <body>
 
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
@@ -71,7 +89,7 @@
     <div class="main-container">
         <div class="tool-card">
             <h2 class="mb-4 fw-bold text-center">Compress PDF</h2>
-            
+
             <div class="mb-4 text-center">
                 <input type="file" id="pdfInput" accept=".pdf" class="form-control mb-3">
                 <p class="text-muted small">Note: Compression converts text to images.</p>
@@ -97,7 +115,8 @@
                 <div class="d-grid mt-4">
                     <button id="compressBtn" class="btn btn-gradient rounded-pill">Compress & Download Full PDF</button>
                     <div id="progressContainer" class="progress mt-3 d-none" style="height: 20px;">
-                        <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                        <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated"
+                            role="progressbar" style="width: 0%"></div>
                     </div>
                 </div>
 
@@ -106,13 +125,14 @@
                         <h5 class="fw-bold">Compressed File Preview (Page 1)</h5>
                         <p><span>Resolution: </span><span id="resolution"></span></p>
                         <div class="preview-container">
-                            <img id="previewImage" src="" alt="Preview will appear here" style="display: none;" class="preview-img">
+                            <img id="previewImage" src="" alt="Preview will appear here" style="display: none;"
+                                class="preview-img">
                             <span id="previewPlaceholder" class="text-muted">Click 'Update Preview' to see result</span>
                         </div>
                     </div>
                 </div>
             </div>
-            
+
             <div id="statusMsg" class="mt-3 text-center small"></div>
         </div>
     </div>
@@ -146,15 +166,15 @@
             currentFile = e.target.files[0];
             if (currentFile && currentFile.type === 'application/pdf') {
                 statusMsg.textContent = "Loading PDF...";
-                
+
                 try {
                     const arrayBuffer = await currentFile.arrayBuffer();
                     pdfDocProxy = await pdfjsLib.getDocument(arrayBuffer).promise;
                     originalPageCount = pdfDocProxy.numPages;
-                    
+
                     statusMsg.textContent = `Loaded ${currentFile.name} (${originalPageCount} pages)`;
                     controls.style.display = 'block';
-                    
+
                     // Trigger initial preview
                     generatePreview();
                 } catch (err) {
@@ -212,7 +232,7 @@
 
         compressBtn.addEventListener('click', async () => {
             if (!pdfDocProxy) return;
-            
+
             compressBtn.disabled = true;
             progressContainer.classList.remove('d-none');
             statusMsg.textContent = "Compressing... This may take a while for large files.";
@@ -227,24 +247,24 @@
                     const percent = Math.round(((i - 1) / originalPageCount) * 100);
                     progressBar.style.width = `${percent}%`;
                     progressBar.textContent = `Page ${i}/${originalPageCount}`;
-                    
+
                     // Render page
                     const page = await pdfDocProxy.getPage(i);
                     const viewport = page.getViewport({ scale: effectiveScale });
-                    
+
                     const canvas = document.createElement('canvas');
                     const context = canvas.getContext('2d');
                     canvas.height = viewport.height;
                     canvas.width = viewport.width;
 
                     await page.render({ canvasContext: context, viewport: viewport }).promise;
-                    
+
                     // Get JPEG blob
                     const imgDataUrl = canvas.toDataURL('image/jpeg', 0.8); // 80% quality compression
-                    
+
                     // Embed in PDF-Lib
                     const msgImage = await newPdfDoc.embedJpg(imgDataUrl);
-                    
+
                     // Add Page (use image dimensions)
                     const imagePage = newPdfDoc.addPage([msgImage.width, msgImage.height]);
                     imagePage.drawImage(msgImage, {
@@ -286,4 +306,5 @@
         });
     </script>
 </body>
+
 </html>
